@@ -1,7 +1,6 @@
 from urllib import response
 from serial.tools import list_ports
 #from serial import Serial
-import serial
 import time
 from multiprocessing import Process, Queue
 import serial_tools
@@ -32,20 +31,20 @@ def main():
     # STEP 2 (optional): home
     tools.print_title("### HOME ROBOT ###")
     home = input("-> Do you want to set robot to home position ? (y|n) ")
-    if home.lower() == 'y': 
-        serial_tools.send(ser1, 'home')
-        serial_tools.send(ser2,'home')
+    # if home.lower() == 'y': 
+    #     serial_tools.send(ser1, 'home')
+    #     serial_tools.send(ser2,'home')
 
-    clean = input("Do you want to clean programs ? (y|n)")
-    if clean.lower() == 'y':
-        robot.clean_programs(ser1)
-    if clean.lower() == 'yy':
-        robot.clean_programs(ser1)
-        robot.clean_programs(ser1)
-    else:
-        create = input("Do you want to create programs ? (y|n)")
-        if create.lower() == 'y':
-            robot.create_program(ser1)
+    # clean = input("Do you want to clean programs ? (y|n)")
+    # if clean.lower() == 'y':
+    #     robot.clean_programs(ser1)
+    # if clean.lower() == 'yy':
+    #     robot.clean_programs(ser1)
+    #     robot.clean_programs(ser1)
+    # else:
+    #     create = input("Do you want to create programs ? (y|n)")
+    #     if create.lower() == 'y':
+    #         robot.create_program(ser1)
     
     #put robot in home position
     robot.Point(name='HM', x= 5248, y=358, z=2776)

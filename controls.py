@@ -12,7 +12,7 @@ import serial_tools
 #int32[] buttons
 #[X,Y]
 #int32[] numpad
-from enum import Enum, auto
+from enum import Enum
 
 class Symbol(Enum):
     X = 0
@@ -35,10 +35,9 @@ def pass_callback(msg):
 
 def main(ser1 = None, ser2 = None):
     global last_received_msg
-    rclpy.init()
+    #rclpy.init()
     node = rclpy.create_node('controls')
     subscriber = node.create_subscription(PS4, 'ps4', pass_callback, 1)
-    
     #inicializations
     ser = ser1
     robot1 = robot.Point('P0')
@@ -66,7 +65,7 @@ def main(ser1 = None, ser2 = None):
                 numpad = last_received_msg.numpad
                 last_received_msg = None   
                 #SQUARE
-                if buttons[Symbol.O]:
+                if buttons[Symbol.O.value]:
                     response = serial_tools.send(ser,'~')
                     if response is None:
                         if manual_mode == False:
@@ -84,7 +83,7 @@ def main(ser1 = None, ser2 = None):
                 if manual_mode:
                     robot.manual_mode(ser, axes)
                     # X
-                    if buttons[Symbol.X]:
+                    if buttons[Symbol.X.value]:
                         if joint_mode == False:
                             serial_tools.send(ser,'j')
                             joint_mode = True
@@ -93,37 +92,40 @@ def main(ser1 = None, ser2 = None):
                             serial_tools.send(ser,'x')
                             joint_mode = False
                             time.sleep(0.2)
-                    elif buttons[Symbol.SHARE]:
+                    elif buttons[Symbol.SHARE.value]:
                         if enable == False:
                             serial_tools.send(ser,'c')
                             enable = True
                         else:
                             serial_tools.send(ser,'f')
                             enable = False
-                    elif buttons[Symbol.R1] and speed < 100:  # Up arrow button at index 11
+                    elif buttons[Symbol.R1.value] and speed < 100:  # Up arrow button at index 11
                         speed += 5
                         serial_tools.send(ser,'s{}'.format(speed))
                         time.sleep(0.2)
-                    elif buttons[Symbol.R2] and speed > 1:  # Down arrow button at index 12
+                    elif buttons[Symbol.R2.value] and speed > 1:  # Down arrow button at index 12
                         speed -= 5
                         serial_tools.send(ser,'s{}'.format(speed))
                         time.sleep(0.2)
-                    elif buttons[Symbol.L1]:
+                    elif buttons[Symbol.L1.value]:
                         serial_tools.send(ser,'5', rec=0)
-                    elif buttons[Symbol.L2]:
+                    elif buttons[Symbol.L2.value]:
                         serial_tools.send(ser,'T', rec=0)
+                    else:
+                        continue
+                    time.sleep(1)
                 #put this in interface
                 #Not Manual mode
                 else:
-                    if buttons[Symbol.O]:
+                    if buttons[Symbol.O.value]:
                         serial_tools.send(ser,'a')
                         time.sleep(0.2)
 
-                    elif buttons[Symbol.TRIANGLE]:
+                    elif buttons[Symbol.TRIANGLE.value]:
                         ser = ser1 if ser == ser2 else ser2
                         time.sleep(0.2)
 
-                    elif buttons[Symbol.HOME]:
+                    elif buttons[Symbol.HOME.value]:
                         print(f"interface - X define point in position, ")
                         start_cut.print()
                         end_cut.print()
@@ -141,14 +143,14 @@ def main(ser1 = None, ser2 = None):
                             numpad = last_received_msg.numpad
                             last_received_msg = None   
 
-                            if numpad[1] == 1 and index < len(menu)-1:
+                            if numpad[1] == -1 and index < len(menu)-1:
                                 index += 1
                                 print(menu[index])
-                            elif numpad[1] == -1 and index > 0:
+                            elif numpad[1] == 1 and index > 0:
                                 index -= 1
                                 print(menu[index])
 
-                            elif buttons[Symbol.X]:
+                            elif buttons[Symbol.X.value]:
                                 if index == 0:
                                     robot.get_point_coordinates(ser, start_cut)
                                     start_cut.print()
@@ -159,19 +161,22 @@ def main(ser1 = None, ser2 = None):
                                     robot.get_point_coordinates(ser, middle_cut)
                                     middle_cut.print()
                                 elif index == 3:
-                                    axis_shift = not axis_shift
-                                    print(f"axis_shift: {axis_shift}")
-                                elif index == 6:
+                                    print('exit menu')
+                                    flag = False
+                                elif index == 4:
                                     flag = False
                 #end code
-                            elif buttons[Symbol.O]:
+                            elif buttons[Symbol.O.value]:
                                 serial_tools.send(ser,'move {}'.format(start_cut.name))
-                                serial_tools.send(ser,'speed 100')
+                                serial_tools.send(ser,'speed 50')
                                 serial_tools.send(ser,'move {}'.format(end_cut.name))
                                 serial_tools.send(ser,'speed 10')
                             else:
                                 continue
                             time.sleep(0.2)
+                    else:
+                        continue
+                    time.sleep(0.2)
 
 
     except KeyboardInterrupt:

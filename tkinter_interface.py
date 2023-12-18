@@ -1,5 +1,12 @@
 import tkinter as tk
 from PIL import Image, ImageTk
+from ps4_controller.msg import PS4
+import ps4_controller_publisher
+import script
+import threading
+import time
+
+global last_received_msg
 
 class ImageSliderApp:
     def __init__(self, root, image_paths):
@@ -59,7 +66,7 @@ class MainWindow:
             print(f"Error: Background image not found at {background_image_path}")
 
         # Set the size of the main window
-        self.root.geometry(f"{background_image.width()}x{background_image.height()}")
+        #self.root.geometry(f"{background_image.width()}x{background_image.height()}")
 
         # Create buttons
         self.btn_control_robot = tk.Button(root, text="Control Robot", command=self.control_robot)
@@ -69,16 +76,33 @@ class MainWindow:
         self.btn_controls.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
     def control_robot(self):
-        # Add code for controlling the robot here
-        pass
+        ps4_controller_ready = threading.Event()
+        # Define the function to run ps4_controller_publisher
+        def run_ps4_controller_publisher():
+            ps4_controller_publisher.main()
+            # Signal that ps4_controller_publisher is ready
+            ps4_controller_ready.set()
+
+        # Create instances of the threads
+        ps4_thread = threading.Thread(target=script.main)
+        ps4_publisher_thread = threading.Thread(target=run_ps4_controller_publisher)
+
+        # Start both threads
+        ps4_publisher_thread.start()
+        ps4_thread.start()
+
+        # Wait for both threads to finish
+        ps4_publisher_thread.join()
+        ps4_thread.join()
+        
 
     def show_controls(self):
         # Create a new window for the image slider
         image_slider_window = tk.Toplevel(self.root)
 
         # Provide the image paths to the ImageSliderApp
-        image_paths = ["Ps4_controller_1.png", "Ps4_controller_2.png"]
-        image_slider_app = ImageSliderApp(image_slider_window, image_paths)
+        #image_paths = ["Ps4_controller_1.png", "Ps4_controller_2.png"]
+        #image_slider_app = ImageSliderApp(image_slider_window, image_paths)
 
 if __name__ == "__main__":
     root = tk.Tk()

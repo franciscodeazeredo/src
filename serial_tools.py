@@ -1,8 +1,6 @@
 import serial
 import time
 import tools
-
-
 # Establish RS232 serial connection to device
 def connect_serial(serial_port, baudrate=9600):
     tools.print_title("### SERIAL CONNECTION ###")

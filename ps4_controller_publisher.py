@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 import pygame
 import rclpy
-
+import numpy as np
 from ps4_controller.msg import PS4
-
-print('beak')
-numpad_mapping = {
+def publish_ps4_controller_data(publisher):
+    numpad_mapping = {
     (0, 0):  [0, 0],
     (1, 0): [1, 0],
     (-1, 0): [-1, 0],
@@ -15,8 +14,8 @@ numpad_mapping = {
     (-1, 1): [-1, 1],
     (1, -1): [1, -1],
     (-1, -1): [-1, -1],
-}
-def publish_ps4_controller_data(publisher):
+    }
+    print('beak')
     pygame.init()
     pygame.joystick.init()
     try:
@@ -30,6 +29,15 @@ def publish_ps4_controller_data(publisher):
 
         # Create Joy message
         ps4_msg = PS4()
+        
+        input_axes = [joystick.get_axis(i) for i in range(joystick.get_numaxes())]
+        axes = [value for index, value in enumerate(input_axes) if index not in [2,5]]
+        ps4_msg.axes = [axis if abs(axis) >= 0.3 else 0.0 for axis in axes]
+
+        ps4_msg.buttons = [joystick.get_button(i) for i in range(joystick.get_numbuttons())]
+        
+        numpad = [joystick.get_hat(i) for i in range(joystick.get_numhats())]
+        ps4_msg.numpad = numpad_mapping.get((numpad[0][0], numpad[0][1]), [0, 0, 0, 0])
 
         while rclpy.ok():
             # Handle events
@@ -44,7 +52,6 @@ def publish_ps4_controller_data(publisher):
                 
                 elif event.type == pygame.JOYHATMOTION:
                     numpad = [joystick.get_hat(i) for i in range(joystick.get_numhats())]
-                    print(numpad, ',\n')
                     ps4_msg.numpad = numpad_mapping.get((numpad[0][0], numpad[0][1]), [0, 0, 0, 0])
 
             # Publish Joy message
