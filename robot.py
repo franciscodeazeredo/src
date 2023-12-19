@@ -77,13 +77,13 @@ class Vector:
 
 # fills Point instance with robot memory data
 def get_point_coordinates(ser=None, point=None):
-    if ser is None:
-        return
     # get point info from robot
     serial_tools.send(ser, 'defp {}'.format(point.name))
     serial_tools.send(ser, 'here {}'.format(point.name))
     response = serial_tools.send(ser, 'listpv {}'.format(point.name))
 
+    if ser is None:
+        return
     # run regex to extract coordinates
     regex = r"(?:X|Y|Z|P|R):.-?[0-9]*"
     coordinates = re.finditer(regex, response, re.MULTILINE)

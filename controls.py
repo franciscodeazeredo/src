@@ -135,6 +135,7 @@ def main(ser1 = None, ser2 = None):
                         index = 0
                         for index, item in enumerate(menu):
                             print(f"{index}: {item}")
+                        
                         flag = True
                         while(flag):
                             rclpy.spin_once(node, timeout_sec=0.1)
@@ -175,6 +176,7 @@ def main(ser1 = None, ser2 = None):
                                 continue
                             time.sleep(0.2)
                     else:
+
                         continue
                     time.sleep(0.2)
 
