@@ -104,6 +104,33 @@ def get_point_coordinates(ser=None, point=None):
             point.r = int(coord)
         i += 1
 # fills Point instance with robot memory data
+def get_point_coordinates_nodefp(ser=None, point=None):
+    # get point info from robot
+    serial_tools.send(ser, 'here {}'.format(point.name))
+    response = serial_tools.send(ser, 'listpv {}'.format(point.name))
+
+    if ser is None:
+        return
+    # run regex to extract coordinates
+    regex = r"(?:X|Y|Z|P|R):.-?[0-9]*"
+    coordinates = re.finditer(regex, response, re.MULTILINE)
+    print(coordinates)
+    # fill Point structure
+    i = 0
+    for c in coordinates:
+        coord = c.group().split(":", 1)[1]
+        if i == 0:
+            point.x = int(coord)
+        elif i == 1:
+            point.y = int(coord)
+        elif i == 2:
+            point.z = int(coord)
+        elif i == 3:
+            point.p = int(coord)
+        elif i == 4:
+            point.r = int(coord)
+        i += 1
+# fills Point instance with robot memory data
 def get_joint_coordinates(ser=None, point=None):
     # get point info from robot
     serial_tools.send(ser, 'here {}'.format(point.name))

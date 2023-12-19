@@ -6,6 +6,7 @@ import serial
 import time
 import robot
 import serial_tools
+import rigid_transform_3D
 #[X1, Y1, X2, Y2]
 #float32 axes
 #[X, O, /\, [], R1, L1, R2, L2, share, options, home, L3, R3]
@@ -13,6 +14,7 @@ import serial_tools
 #[X,Y]
 #int32[] numpad
 from enum import Enum
+import numpy as np
 
 class Symbol(Enum):
     X = 0
@@ -28,6 +30,21 @@ class Symbol(Enum):
     HOME = 10
     L3 = 11
     R3 = 12
+
+def set_manual_mode(ser, manual_mode):
+    response = serial_tools.send(ser,'~')
+    if response is None:
+        if manual_mode == False:
+            manual_mode = True
+        elif manual_mode == True:
+            manual_mode = False
+    else:
+        if 'exit' in response.lower():
+            manual_mode = False
+        else:
+            manual_mode = True
+    print(manual_mode)
+    time.sleep(0.2)
 
 def pass_callback(msg):
     global last_received_msg
@@ -54,6 +71,8 @@ def main(ser1 = None, ser2 = None):
     joint_mode = True
     enable = False
     speed = 10
+    t_T = None
+    t_R = None
     try:
         while rclpy.ok():
             rclpy.spin_once(node, timeout_sec=0.1)
@@ -66,19 +85,7 @@ def main(ser1 = None, ser2 = None):
                 last_received_msg = None   
                 #SQUARE
                 if buttons[Symbol.O.value]:
-                    response = serial_tools.send(ser,'~')
-                    if response is None:
-                        if manual_mode == False:
-                            manual_mode = True
-                        elif manual_mode == True:
-                            manual_mode = False
-                    else:
-                        if 'exit' in response.lower():
-                            manual_mode = False
-                        else:
-                            manual_mode = True
-                    print(manual_mode)
-                    time.sleep(0.2)
+                    set_manual_mode(ser, manual_mode)
 
                 if manual_mode:
                     robot.manual_mode(ser, axes)
@@ -117,14 +124,109 @@ def main(ser1 = None, ser2 = None):
                 #put this in interface
                 #Not Manual mode
                 else:
+                    #abort all programs
                     if buttons[Symbol.O.value]:
                         serial_tools.send(ser,'a')
                         time.sleep(0.2)
-
+                    #swittch between robots
                     elif buttons[Symbol.TRIANGLE.value]:
                         ser = ser1 if ser == ser2 else ser2
                         time.sleep(0.2)
+                    #make configuration
+                    elif buttons[Symbol.OPTIONS]:
+                        confirmation = True
+                        print(f"interface - X define point in position, ")
+                        #start configuration of matrixes
+                        while confirmation:
+                            print(f"are you sure X yes, O no")
+                            rclpy.spin_once(node, timeout_sec=0.1)
+                            buttons = last_received_msg.buttons
+                            axes = last_received_msg.axes
+                            numpad = last_received_msg.numpad
+                            last_received_msg = None
+                            
+                            if buttons[Symbol.O.value]:
+                                confirmation = False
+                                break
+                            elif buttons[Symbol.X.value]:
+                                confirmation = True
+                                t_a = []                                    #list of points in robot1 position
+                                t_b = []                                    #list of points in robot2 position
+                                rp = 0
+                                #configuration start
+                                set_manual_mode(ser, manual_mode)
+                                point_here = True
+                                while point_here:
+                                    rclpy.spin_once(node, timeout_sec=0.1)
+                                    buttons = last_received_msg.buttons
+                                    axes = last_received_msg.axes
+                                    numpad = last_received_msg.numpad
+                                    last_received_msg = None
+                                    robot.manual_mode(ser, axes)
 
+                                    if buttons[Symbol.X.value]:               #get point for configuration matrice
+                                        if rp == 0:
+                                            set_manual_mode(ser, manual_mode)
+                                            robot.get_point_coordinates(ser, robot1)  #get point coordinates in robots position
+                                            extract = [robot1.x, robot1.y, robot1.z]  #extract coordinates
+                                            t_a.append(extract)                        #add point to list
+                                            serial_tools.send(ser,'move HM')          #move to home position
+                                            #change to next robot
+                                            ser = ser1 if ser == ser2 else ser2
+                                            set_manual_mode(ser, manual_mode)
+                                            rp = 1
+                                        elif rp == 1:
+                                            set_manual_mode(ser, manual_mode)
+                                            robot.get_point_coordinates(ser, robot1)
+                                            extract = [robot1.x, robot1.y, robot1.z]
+                                            t_b.append(extract)
+                                            serial_tools.send(ser,'move HM')
+                                            #change to next robot
+                                            ser = ser1 if ser == ser2 else ser2
+                                            set_manual_mode(ser, manual_mode)
+                                            rp = 0
+
+                                    elif buttons[Symbol.SQUARE.value]:
+                                        #check if values are good
+                                        if len(t_a) > 0 and len(t_b) > 0 and len(t_a) == len(t_b):
+                                            point_here = False
+                                            #calculate transformation matrix
+                                            t_a = np.array(t_a)
+                                            t_b = np.array(t_b)
+                                            t_T_a, t_R_a = rigid_transform_3D.continuous_rigid_transform(t_a.T, t_b.T)
+                                            print(t_T_a)
+                                            print(t_R_a)
+                                            print('===')
+                                            print(t_a)
+                                            print(t_b)
+                                            input = True
+                                            #make sure user prefers this new transformation matrix
+                                            while input:
+                                                print(f"are you sure X yes, O no")
+                                                rclpy.spin_once(node, timeout_sec=0.1)
+                                                buttons = last_received_msg.buttons
+                                                axes = last_received_msg.axes
+                                                numpad = last_received_msg.numpad
+                                                last_received_msg = None
+                                                if buttons[Symbol.X.value]:
+                                                    #update transformation matrix
+                                                    input = False
+                                                    t_T = t_T_a
+                                                    t_R = t_R_a
+                                                    break
+                                                elif buttons[Symbol.O.value]:
+                                                    #do not update transformation matrix and remove last known digits
+                                                    t_b.remove(t_b[-1])
+                                                    t_a.remove(t_a[-1])
+                                                    input = False
+                                                    break
+                                                else:
+                                                    continue
+                                        else:
+                                            print('not enough points')
+                                    else:
+                                        continue
+                    #interface to make points
                     elif buttons[Symbol.HOME.value]:
                         print(f"interface - X define point in position, ")
                         start_cut.print()
@@ -166,17 +268,24 @@ def main(ser1 = None, ser2 = None):
                                     flag = False
                                 elif index == 4:
                                     flag = False
-                #end code
                             elif buttons[Symbol.O.value]:
                                 serial_tools.send(ser,'move {}'.format(start_cut.name))
                                 serial_tools.send(ser,'speed 50')
                                 serial_tools.send(ser,'move {}'.format(end_cut.name))
                                 serial_tools.send(ser,'speed 10')
+                            # transfer button to other robot and make him move to that position
+                            elif buttons[Symbol.TRIANGLE.value]:
+                                serial_tools.send(ser,'move HM')
+                                ser = ser1 if ser == ser2 else ser2
+                                serial_tools.send(ser,'speed 10')
+                                serial_tools.send(ser,'move {}'.format(menu[index]))
+                                time.sleep(0.2)
                             else:
                                 continue
                             time.sleep(0.2)
+                    
+                    
                     else:
-
                         continue
                     time.sleep(0.2)
 
