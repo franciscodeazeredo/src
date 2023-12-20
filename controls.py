@@ -45,6 +45,7 @@ def set_manual_mode(ser, manual_mode):
             manual_mode = True
     print(manual_mode)
     time.sleep(0.2)
+    return manual_mode
 
 def pass_callback(msg):
     global last_received_msg
@@ -52,9 +53,9 @@ def pass_callback(msg):
 
 def main(ser1 = None, ser2 = None):
     global last_received_msg
-    #rclpy.init()
+    rclpy.init()
     node = rclpy.create_node('controls')
-    subscriber = node.create_subscription(PS4, 'ps4', pass_callback, 1)
+    subscriber = node.create_subscription(PS4, 'ps4', pass_callback, 10)
     #inicializations
     ser = ser1
     robot1 = robot.Point('P0')
@@ -85,7 +86,7 @@ def main(ser1 = None, ser2 = None):
                 last_received_msg = None   
                 #SQUARE
                 if buttons[Symbol.O.value]:
-                    set_manual_mode(ser, manual_mode)
+                    manual_mode = set_manual_mode(ser, manual_mode)
 
                 if manual_mode:
                     robot.manual_mode(ser, axes)
@@ -108,11 +109,11 @@ def main(ser1 = None, ser2 = None):
                             enable = False
                     elif buttons[Symbol.R1.value] and speed < 100:  # Up arrow button at index 11
                         speed += 5
-                        serial_tools.send(ser,'s{}'.format(speed))
+                        serial_tools.send(ser,'s{}'.format(speed), rec = 1)
                         time.sleep(0.2)
                     elif buttons[Symbol.R2.value] and speed > 1:  # Down arrow button at index 12
                         speed -= 5
-                        serial_tools.send(ser,'s{}'.format(speed))
+                        serial_tools.send(ser,'s{}'.format(speed), rec = 1)
                         time.sleep(0.2)
                     elif buttons[Symbol.L1.value]:
                         serial_tools.send(ser,'5', rec=0)
@@ -120,25 +121,22 @@ def main(ser1 = None, ser2 = None):
                         serial_tools.send(ser,'T', rec=0)
                     else:
                         continue
-                    time.sleep(1)
                 #put this in interface
                 #Not Manual mode
                 else:
-                    #abort all programs
-                    if buttons[Symbol.O.value]:
-                        serial_tools.send(ser,'a')
-                        time.sleep(0.2)
                     #swittch between robots
-                    elif buttons[Symbol.TRIANGLE.value]:
+                    if buttons[Symbol.TRIANGLE.value]:
                         ser = ser1 if ser == ser2 else ser2
-                        time.sleep(0.2)
+                        print(ser)
+                        time.sleep(0.5)
+                    elif buttons[Symbol.SQUARE.value]:
+                        serial_tools.send(ser,'move HM')
                     #make configuration
-                    elif buttons[Symbol.OPTIONS]:
+                    elif buttons[Symbol.OPTIONS.value]:
                         confirmation = True
-                        print(f"interface - X define point in position, ")
+                        print(f"are you sure X yes, O no")
                         #start configuration of matrixes
                         while confirmation:
-                            print(f"are you sure X yes, O no")
                             rclpy.spin_once(node, timeout_sec=0.1)
                             buttons = last_received_msg.buttons
                             axes = last_received_msg.axes
@@ -146,15 +144,17 @@ def main(ser1 = None, ser2 = None):
                             last_received_msg = None
                             
                             if buttons[Symbol.O.value]:
+                                print('exiting')
                                 confirmation = False
                                 break
                             elif buttons[Symbol.X.value]:
+                                print('configuration start')
                                 confirmation = True
                                 t_a = []                                    #list of points in robot1 position
                                 t_b = []                                    #list of points in robot2 position
                                 rp = 0
                                 #configuration start
-                                set_manual_mode(ser, manual_mode)
+                                manual_mode = set_manual_mode(ser, manual_mode)
                                 point_here = True
                                 while point_here:
                                     rclpy.spin_once(node, timeout_sec=0.1)
@@ -169,11 +169,11 @@ def main(ser1 = None, ser2 = None):
                                             set_manual_mode(ser, manual_mode)
                                             robot.get_point_coordinates(ser, robot1)  #get point coordinates in robots position
                                             extract = [robot1.x, robot1.y, robot1.z]  #extract coordinates
-                                            t_a.append(extract)                        #add point to list
+                                            t_a.append(extract)                       #add point to list
                                             serial_tools.send(ser,'move HM')          #move to home position
+                                            set_manual_mode(ser, manual_mode)
                                             #change to next robot
                                             ser = ser1 if ser == ser2 else ser2
-                                            set_manual_mode(ser, manual_mode)
                                             rp = 1
                                         elif rp == 1:
                                             set_manual_mode(ser, manual_mode)
@@ -181,9 +181,9 @@ def main(ser1 = None, ser2 = None):
                                             extract = [robot1.x, robot1.y, robot1.z]
                                             t_b.append(extract)
                                             serial_tools.send(ser,'move HM')
+                                            set_manual_mode(ser, manual_mode)
                                             #change to next robot
                                             ser = ser1 if ser == ser2 else ser2
-                                            set_manual_mode(ser, manual_mode)
                                             rp = 0
 
                                     elif buttons[Symbol.SQUARE.value]:
@@ -197,8 +197,8 @@ def main(ser1 = None, ser2 = None):
                                             print(t_T_a)
                                             print(t_R_a)
                                             print('===')
-                                            print(t_a)
-                                            print(t_b)
+                                            print(t_T)
+                                            print(t_R)
                                             input = True
                                             #make sure user prefers this new transformation matrix
                                             while input:
@@ -224,6 +224,10 @@ def main(ser1 = None, ser2 = None):
                                                     continue
                                         else:
                                             print('not enough points')
+                                    
+                                    elif buttons[Symbol.O.value]:
+                                        point_here == False
+                                        break
                                     else:
                                         continue
                     #interface to make points

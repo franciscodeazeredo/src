@@ -46,13 +46,16 @@ def publish_ps4_controller_data(publisher):
                     input_axes = [joystick.get_axis(i) for i in range(joystick.get_numaxes())]
                     axes = [value for index, value in enumerate(input_axes) if index not in [2,5]]
                     ps4_msg.axes = [axis if abs(axis) >= 0.3 else 0.0 for axis in axes]
+                    #print(ps4_msg.axes)
                     
                 elif event.type == pygame.JOYBUTTONDOWN or event.type == pygame.JOYBUTTONUP:
                     ps4_msg.buttons = [joystick.get_button(i) for i in range(joystick.get_numbuttons())]
+                    #print(ps4_msg.buttons)
                 
                 elif event.type == pygame.JOYHATMOTION:
                     numpad = [joystick.get_hat(i) for i in range(joystick.get_numhats())]
                     ps4_msg.numpad = numpad_mapping.get((numpad[0][0], numpad[0][1]), [0, 0, 0, 0])
+                    #print(ps4_msg.numpad)
 
             # Publish Joy message
             publisher.publish(ps4_msg)

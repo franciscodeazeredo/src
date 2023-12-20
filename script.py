@@ -35,11 +35,6 @@ def main():
     #     serial_tools.send(ser1, 'home')
     #     serial_tools.send(ser2,'home')
 
-    HW_position = input("-> Do you want to set robot to HW position ? (y|n) ")
-    if HW_position.lower() == 'y': 
-        serial_tools.send(ser1, 'move HW')
-        serial_tools.send(ser2,'move HW')
-
     # clean = input("Do you want to clean programs ? (y|n)")
     # if clean.lower() == 'y':
     #     robot.clean_programs(ser1)
@@ -52,8 +47,8 @@ def main():
     #         robot.create_program(ser1)
     
     #put robot in home position
-    robot.Point(name='HM', x= 5248, y=358, z=2776)
-    serial_tools.send(ser1,"move HM")
+    # hm = robot.Point('HM')
+    # robot.get_point_coordinates(ser1,hm)
 
     # serial_tools.send(ser1,"delp P0")   
     # serial_tools.send(ser1,'defpa P0')

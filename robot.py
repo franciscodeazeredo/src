@@ -2,6 +2,7 @@ import re
 import serial_tools
 import tools
 import numpy as np
+import time
 
 class Point:
     def __init__(self, name='point', ptype='image', x=0, y=0, z=0, p=0, r=0):
@@ -400,7 +401,7 @@ def manual_mode(ser = None, current_move = np.zeros(4)):
     
     rec = 0
     if value == 0:
-        pass
+        return
     if value >0:
         if index == 0:
             serial_tools.send(ser,'1',rec=rec)
@@ -410,7 +411,6 @@ def manual_mode(ser = None, current_move = np.zeros(4)):
             serial_tools.send(ser,'3',rec=rec)
         elif index == 3:
             serial_tools.send(ser,'4',rec=rec)
-
     elif value < 0:
         if index == 0:
             serial_tools.send(ser,'Q',rec=rec) 
