@@ -30,10 +30,16 @@ def main():
     if ser2 is None: print("seconde device not connected")
     # STEP 2 (optional): home
     tools.print_title("### HOME ROBOT ###")
-    # home = input("-> Do you want to set robot to home position ? (y|n) ")
-    # if home.lower() == 'y': 
-    #     serial_tools.send(ser1, 'home')
-    #     serial_tools.send(ser2,'home')
+    home = input("-> Do you want to set robot to home position ? (y|n) ")
+    if home.lower() == 'y': 
+        serial_tools.send(ser1,'home')
+        serial_tools.send(ser2,'home')
+        set_home = input("-> Do you want to set home position ? (y|n) ")
+        if set_home.lower() == 'y':
+            serial_tools.send(ser1,'defp HM')
+            serial_tools.send(ser1,'here HM')
+            serial_tools.send(ser2,'defp HM')
+            serial_tools.send(ser2,'here HM')
 
     # clean = input("Do you want to clean programs ? (y|n)")
     # if clean.lower() == 'y':

@@ -36,7 +36,6 @@ def receive(ser):
         output = 'No answer.'
 
     tools.print_robot_receive('>>> ' + output)      # final print
-
     return output
 
 

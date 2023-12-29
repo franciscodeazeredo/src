@@ -52,8 +52,9 @@ def pass_callback(msg):
     last_received_msg = msg
 
 def main(ser1 = None, ser2 = None):
+    #needed for ps4 controller subscription
     global last_received_msg
-    rclpy.init()
+    #rclpy.init()
     node = rclpy.create_node('controls')
     subscriber = node.create_subscription(PS4, 'ps4', pass_callback, 10)
     #inicializations
@@ -61,11 +62,18 @@ def main(ser1 = None, ser2 = None):
     robot1 = robot.Point('P0')
     robot.get_point_coordinates(ser, robot1)
     robot1.print()
+    cut = robot.Point('cut')
+    #start exact for c group
+    #serial_tools.send(ser,'exact B')
+    serial_tools.send(ser,'defpa cut')
+    serial_tools.send(ser,'mprofile parabole a')
 
+    #init variables
     move_plan = robot.Point('move')
     start_cut = robot.Point('SC')
     end_cut = robot.Point('EC')
     middle_cut = robot.Point('MC')
+    home_point = robot.Point('HM')
     axis_shift = False
     running = True
     manual_mode = False
@@ -87,41 +95,8 @@ def main(ser1 = None, ser2 = None):
                 #SQUARE
                 if buttons[Symbol.O.value]:
                     manual_mode = set_manual_mode(ser, manual_mode)
-
                 if manual_mode:
-                    robot.manual_mode(ser, axes)
-                    # X
-                    if buttons[Symbol.X.value]:
-                        if joint_mode == False:
-                            serial_tools.send(ser,'j')
-                            joint_mode = True
-                            time.sleep(0.2)
-                        else:
-                            serial_tools.send(ser,'x')
-                            joint_mode = False
-                            time.sleep(0.2)
-                    elif buttons[Symbol.SHARE.value]:
-                        if enable == False:
-                            serial_tools.send(ser,'c')
-                            enable = True
-                        else:
-                            serial_tools.send(ser,'f')
-                            enable = False
-                    elif buttons[Symbol.R1.value] and speed < 100:  # Up arrow button at index 11
-                        speed += 5
-                        serial_tools.send(ser,'s{}'.format(speed), rec = 1)
-                        time.sleep(0.2)
-                    elif buttons[Symbol.R2.value] and speed > 1:  # Down arrow button at index 12
-                        speed -= 5
-                        serial_tools.send(ser,'s{}'.format(speed), rec = 1)
-                        time.sleep(0.2)
-                    elif buttons[Symbol.L1.value]:
-                        serial_tools.send(ser,'5', rec=0)
-                    elif buttons[Symbol.L2.value]:
-                        serial_tools.send(ser,'T', rec=0)
-                    else:
-                        continue
-                #put this in interface
+                    robot.manual_mode(ser, axes, buttons, numpad)
                 #Not Manual mode
                 else:
                     #swittch between robots
@@ -130,11 +105,41 @@ def main(ser1 = None, ser2 = None):
                         print(ser)
                         time.sleep(0.5)
                     elif buttons[Symbol.SQUARE.value]:
+                        serial_tools.send(ser,'speed 20')
                         serial_tools.send(ser,'move HM')
+                    
+                    #make simple cut down
+                    elif numpad[1] == -1:
+                        #configure moveplan.x
+                        while True:
+                            rclpy.spin_once(node, timeout_sec=0.1)
+                            buttons = last_received_msg.buttons
+                            axes = last_received_msg.axes
+                            numpad = last_received_msg.numpad
+                            last_received_msg = None
+                            if buttons[Symbol.X.value]:
+                                break
+                            elif numpad[1] == -1:
+                                move_plan.x -= 10
+                                print(move_plan.x)
+                            elif numpad[1] == 1:
+                                move_plan.x += 10
+                                print(move_plan.x)
+                            else:
+                                continue
+                            time.sleep(0.2)
+                        #simple cut
+                        serial_tools.send(ser,'here cut')
+                        serial_tools.send(ser,'shiftc {} by {} {}'.format('cut', 'X', move_plan.x))
+                        #robot.move(ser, robot1, move_plan, 30)
+                        serial_tools.send(ser,'speed 40')
+                        serial_tools.send(ser,'movel cut')
+
+                        #serial_tools.send(ser,'move HM')
                     #make configuration
                     elif buttons[Symbol.OPTIONS.value]:
                         confirmation = True
-                        print(f"are you sure X yes, O no")
+                        print(f"are you sure X yes, O no, need to be in camera")
                         #start configuration of matrixes
                         while confirmation:
                             rclpy.spin_once(node, timeout_sec=0.1)
@@ -153,35 +158,51 @@ def main(ser1 = None, ser2 = None):
                                 t_a = []                                    #list of points in robot1 position
                                 t_b = []                                    #list of points in robot2 position
                                 rp = 0
-                                #configuration start
-                                manual_mode = set_manual_mode(ser, manual_mode)
+                                #configuration start set manual mode false in both machines
+                                manual_mode = set_manual_mode(ser1, manual_mode)
+                                if manual_mode == False:
+                                    manual_mode = set_manual_mode(ser1,manual_mode)
+                                
+                                manual_mode = set_manual_mode(ser2, manual_mode)
+                                if manual_mode == False:
+                                    manual_mode = set_manual_mode(ser2,manual_mode)
+
                                 point_here = True
+                                #get points for configuration matrix
                                 while point_here:
                                     rclpy.spin_once(node, timeout_sec=0.1)
                                     buttons = last_received_msg.buttons
                                     axes = last_received_msg.axes
                                     numpad = last_received_msg.numpad
                                     last_received_msg = None
-                                    robot.manual_mode(ser, axes)
+                                    robot.manual_mode(ser, axes, buttons)
 
-                                    if buttons[Symbol.X.value]:               #get point for configuration matrice
+                                    if buttons[Symbol.X.value]:                      #get point for configuration matrice
                                         if rp == 0:
-                                            set_manual_mode(ser, manual_mode)
+                                            manual_mode = set_manual_mode(ser, manual_mode)
+                                            #check if manual mode is on
+                                            if manual_mode == False:
+                                                manual_mode = set_manual_mode(ser,manual_mode)
+                                            serial_tools.send(ser,'c')
                                             robot.get_point_coordinates(ser, robot1)  #get point coordinates in robots position
                                             extract = [robot1.x, robot1.y, robot1.z]  #extract coordinates
                                             t_a.append(extract)                       #add point to list
                                             serial_tools.send(ser,'move HM')          #move to home position
-                                            set_manual_mode(ser, manual_mode)
+                                            manual_mode = set_manual_mode(ser, manual_mode)
                                             #change to next robot
                                             ser = ser1 if ser == ser2 else ser2
                                             rp = 1
                                         elif rp == 1:
-                                            set_manual_mode(ser, manual_mode)
+                                            manual_mode = set_manual_mode(ser, manual_mode)
+                                            #check if manual mode is on
+                                            if manual_mode == False:
+                                                manual_mode = set_manual_mode(ser,manual_mode)
+                                            serial_tools.send(ser,'c')
                                             robot.get_point_coordinates(ser, robot1)
                                             extract = [robot1.x, robot1.y, robot1.z]
                                             t_b.append(extract)
                                             serial_tools.send(ser,'move HM')
-                                            set_manual_mode(ser, manual_mode)
+                                            manual_mode = set_manual_mode(ser, manual_mode)
                                             #change to next robot
                                             ser = ser1 if ser == ser2 else ser2
                                             rp = 0
@@ -230,13 +251,15 @@ def main(ser1 = None, ser2 = None):
                                         break
                                     else:
                                         continue
+                    
+                    
                     #interface to make points
                     elif buttons[Symbol.HOME.value]:
                         print(f"interface - X define point in position, ")
                         start_cut.print()
                         end_cut.print()
                         middle_cut.print()
-                        menu = ['start_cut', 'end_cut', 'middle_cut', 'exit']
+                        menu = ['start_cut', 'end_cut', 'middle_cut','home_point', 'exit']
                         #print the whole menu
                         index = 0
                         for index, item in enumerate(menu):
@@ -256,7 +279,7 @@ def main(ser1 = None, ser2 = None):
                             elif numpad[1] == 1 and index > 0:
                                 index -= 1
                                 print(menu[index])
-
+                            #define point in position
                             elif buttons[Symbol.X.value]:
                                 if index == 0:
                                     robot.get_point_coordinates(ser, start_cut)
@@ -268,22 +291,54 @@ def main(ser1 = None, ser2 = None):
                                     robot.get_point_coordinates(ser, middle_cut)
                                     middle_cut.print()
                                 elif index == 3:
-                                    print('exit menu')
+                                    robot.get_point_coordinates(ser, home_point)
+                                    home_point.print()
                                     flag = False
                                 elif index == 4:
+                                    print('exit menu')
                                     flag = False
+                            #move to point
                             elif buttons[Symbol.O.value]:
+                                serial_tools.send(ser,'speed 10')
+                                # if start_cut.x == 0 and start_cut.y == 0 and start_cut.z == 0:
+                                #     robot.get_point_coordinates_nodefp_nohere(ser, start_cut)
+                                # if end_cut.x == 0 and end_cut.y == 0 and end_cut.z == 0:
+                                #     robot.get_point_coordinates_nodefp_nohere(ser, end_cut)
+                                
+                                # robot1.x = (start_cut.x + end_cut.x)/2
+                                # robot1.y = (start_cut.y + end_cut.y)/2
+                                # robot1.z = (start_cut.z + end_cut.z)/2 +1000
+
+                                serial_tools.send(ser,'speed 5')
+                                # if middle_cut.x == 0 and middle_cut.y == 0 and middle_cut.z == 0:
+                                #     serial_tools.send(ser,'move HM')
+                                # else:
+                                serial_tools.send(ser,'move MC')
                                 serial_tools.send(ser,'move {}'.format(start_cut.name))
-                                serial_tools.send(ser,'speed 50')
+                                serial_tools.send(ser,'speed 60')
                                 serial_tools.send(ser,'move {}'.format(end_cut.name))
                                 serial_tools.send(ser,'speed 10')
                             # transfer button to other robot and make him move to that position
                             elif buttons[Symbol.TRIANGLE.value]:
-                                serial_tools.send(ser,'move HM')
-                                ser = ser1 if ser == ser2 else ser2
-                                serial_tools.send(ser,'speed 10')
-                                serial_tools.send(ser,'move {}'.format(menu[index]))
+                                if t_T is not None and t_R is not None:
+                                    #get point coordinates in robot1 position
+                                    robot.get_point_coordinates(ser, robot1)
+                                    #extract coordinates
+                                    extract = [robot1.x, robot1.y, robot1.z]
+                                    #transform coordinates
+                                    transformed = rigid_transform_3D.transform(extract, t_T, t_R)
+                                    #move to point
+                                    move_plan.x = transformed[0]
+                                    move_plan.y = transformed[1]
+                                    move_plan.z = transformed[2]
+                                    serial_tools.send(ser,'move HM')
+                                    ser = ser1 if ser == ser2 else ser2
+                                    serial_tools.send(ser,'speed 10')
+                                    robot.move_joints(ser,move_plan, 30)
+                                else:
+                                    print('no transformation matrix')
                                 time.sleep(0.2)
+                                
                             else:
                                 continue
                             time.sleep(0.2)
