@@ -110,6 +110,8 @@ def main(ser1 = None, ser2 = None):
                     
                     #make simple cut down
                     elif numpad[1] == -1:
+                        move_plan.x = 0
+                        move_plan.y = 0
                         #configure moveplan.x
                         while True:
                             rclpy.spin_once(node, timeout_sec=0.1)
@@ -125,12 +127,19 @@ def main(ser1 = None, ser2 = None):
                             elif numpad[1] == 1:
                                 move_plan.x += 10
                                 print(move_plan.x)
+                            elif numpad[0] == -1:
+                                move_plan.y += 10
+                                print(move_plan.y)
+                            elif numpad[0] == 1:
+                                move_plan.y -= 10
+                                print(move_plan.y)
                             else:
                                 continue
-                            time.sleep(0.2)
+                            time.sleep(0.1)
                         #simple cut
                         serial_tools.send(ser,'here cut')
                         serial_tools.send(ser,'shiftc {} by {} {}'.format('cut', 'X', move_plan.x))
+                        serial_tools.send(ser,'shiftc {} by {} {}'.format('cut', 'Y', move_plan.y))
                         #robot.move(ser, robot1, move_plan, 30)
                         serial_tools.send(ser,'speed 40')
                         serial_tools.send(ser,'movel cut')
@@ -175,7 +184,7 @@ def main(ser1 = None, ser2 = None):
                                     axes = last_received_msg.axes
                                     numpad = last_received_msg.numpad
                                     last_received_msg = None
-                                    robot.manual_mode(ser, axes, buttons)
+                                    robot.manual_mode(ser, axes, buttons, numpad)
 
                                     if buttons[Symbol.X.value]:                      #get point for configuration matrice
                                         if rp == 0:
@@ -184,6 +193,7 @@ def main(ser1 = None, ser2 = None):
                                             if manual_mode == False:
                                                 manual_mode = set_manual_mode(ser,manual_mode)
                                             serial_tools.send(ser,'c')
+                                            manual_mode = set_manual_mode(ser, manual_mode) #set manual mode false
                                             robot.get_point_coordinates(ser, robot1)  #get point coordinates in robots position
                                             extract = [robot1.x, robot1.y, robot1.z]  #extract coordinates
                                             t_a.append(extract)                       #add point to list
@@ -198,6 +208,7 @@ def main(ser1 = None, ser2 = None):
                                             if manual_mode == False:
                                                 manual_mode = set_manual_mode(ser,manual_mode)
                                             serial_tools.send(ser,'c')
+                                            manual_mode = set_manual_mode(ser, manual_mode) #set manual mode false again
                                             robot.get_point_coordinates(ser, robot1)
                                             extract = [robot1.x, robot1.y, robot1.z]
                                             t_b.append(extract)
